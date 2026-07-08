@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TripPilot 设计语言预览</title>
+<style>
+:root{
+  --primary:#2E6B5E;
+  --primary-dark:#1F4D42;
+  --primary-light:#E8F0ED;
+  --bg-page:#FAF8F4;
+  --bg-card:#FFFFFF;
+  --text:#1F2421;
+  --text-sub:#6B7770;
+  --text-dis:#A8B0AB;
+  --border:#EAE6DF;
+  --sun:#E8A54B;
+  --hi:#D96A5B;
+  --mid:#E8A54B;
+  --low:#5B93D9;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",-apple-system,sans-serif;
+  background:#EDEAE3;color:var(--text);padding:24px;line-height:1.6;
+  display:flex;justify-content:center;
+}
+.wrap{width:100%;max-width:420px;}
+h1{font-size:22px;font-weight:700;margin-bottom:4px;}
+.sub{font-size:13px;color:var(--text-sub);margin-bottom:24px;}
+.sec{background:var(--bg-page);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.04);}
+.sec-t{font-size:13px;font-weight:600;color:var(--text-sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+
+/* 线性图标：统一 stroke，跟随主题色 */
+.ico{width:20px;height:20px;display:inline-block;vertical-align:middle;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;fill:none;}
+
+/* 色板 */
+.sw-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.sw{border-radius:12px;padding:12px;font-size:12px;border:1px solid var(--border);}
+.sw .dot{width:100%;height:44px;border-radius:8px;margin-bottom:8px;}
+.sw .nm{font-weight:600;color:var(--text);}
+.sw .hex{color:var(--text-sub);font-size:11px;}
+
+/* 字阶 */
+.type-row{padding:6px 0;border-bottom:1px solid var(--border);}
+.type-row:last-child{border:none;}
+.t-h1{font-size:24px;font-weight:700;}
+.t-h2{font-size:18px;font-weight:600;}
+.t-body{font-size:15px;font-weight:400;}
+.t-bodyb{font-size:15px;font-weight:600;}
+.t-cap{font-size:13px;color:var(--text-sub);}
+.t-label{font-size:11px;font-weight:500;color:var(--text-sub);}
+
+/* 按钮 */
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;height:48px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;border:none;width:100%;margin-bottom:8px;}
+.btn-p{background:var(--primary);color:#fff;}
+.btn-p:active{background:var(--primary-dark);}
+.btn-s{background:#fff;color:var(--primary);border:1.5px solid var(--primary);}
+
+/* 选项卡 */
+.opt{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;margin-bottom:8px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px;}
+.opt:hover{border-color:var(--primary);}
+.opt.on{background:var(--primary-light);border-color:var(--primary);color:var(--primary-dark);font-weight:600;}
+
+/* 对话气泡：纯圆角，无尖角；用户无头像 */
+.chat{background:var(--bg-page);padding:4px 0;}
+.row{display:flex;margin-bottom:10px;align-items:flex-end;gap:8px;}
+.row.u{justify-content:flex-end;}
+.ava{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ava .ico{width:20px;height:20px;stroke:#fff;}
+.bub{max-width:76%;padding:11px 15px;font-size:15px;line-height:1.5;border-radius:18px;}
+.bub.ai{background:var(--primary-light);color:var(--text);}
+.bub.u{background:var(--primary);color:#fff;}
+
+/* 卡片 */
+.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04);}
+.card h3{font-size:18px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:500;background:var(--primary-light);color:var(--primary);}
+.tag-sun{background:#FBEED9;color:#B77A22;}
+
+/* 状态 */
+.st-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:14px;}
+.st-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* 输入区 */
+.inp-bar{display:flex;gap:8px;align-items:center;}
+.inp{flex:1;height:44px;border-radius:24px;border:1px solid var(--border);background:#fff;padding:0 16px;font-size:15px;color:var(--text-dis);display:flex;align-items:center;}
+.icon-btn{width:44px;height:44px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.icon-btn .ico{stroke:#fff;}
+.icon-btn.ghost{background:#fff;border:1px solid var(--border);}
+.icon-btn.ghost .ico{stroke:var(--text-sub);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>TripPilot 设计语言</h1>
+  <div class="sub">浅暖底 + 深森林绿 · 亲和松弛 · 有旅行温度</div>
+
+  <div class="sec">
+    <div class="sec-t">颜色</div>
+    <div class="sw-grid">
+      <div class="sw"><div class="dot" style="background:#2E6B5E"></div><div class="nm">主色 深森林绿</div><div class="hex">#2E6B5E</div></div>
+      <div class="sw"><div class="dot" style="background:#1F4D42"></div><div class="nm">主色-深 按下</div><div class="hex">#1F4D42</div></div>
+      <div class="sw"><div class="dot" style="background:#E8F0ED"></div><div class="nm">主色-浅 背景</div><div class="hex">#E8F0ED</div></div>
+      <div class="sw"><div class="dot" style="background:#FAF8F4;border:1px solid #EAE6DF"></div><div class="nm">页面底 暖白</div><div class="hex">#FAF8F4</div></div>
+      <div class="sw"><div class="dot" style="background:#E8A54B"></div><div class="nm">暖阳点缀</div><div class="hex">#E8A54B</div></div>
+      <div class="sw"><div class="dot" style="background:#1F2421"></div><div class="nm">主文字</div><div class="hex">#1F2421</div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t">字阶</div>
+    <div class="type-row"><span class="t-h1">大标题 24</span></div>
+    <div class="type-row"><span class="t-h2">标题 18</span></div>
+    <div class="type-row"><span class="t-body">正文 15，对话气泡和正文用这个字号，读起来舒服</span></div>
+    <div class="type-row"><span class="t-bodyb">强调正文 15 加粗</span></div>
+    <div class="type-row"><span class="t-cap">辅助 13，用在依据、时间戳</span></div>
+    <div class="type-row"><span class="t-label">标签 11</span></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t">按钮 & 选项卡</div>
+    <button class="btn btn-p">
+      <svg class="ico" style="stroke:#fff" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      开始规划
+    </button>
+    <button class="btn btn-s">再改改</button>
+    <div style="height:8px"></div>
+    <div class="opt on">
+      <svg class="ico" style="stroke:var(--primary)" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+      选中的选项（引导式对话里用）
+    </div>
+    <div class="opt">未选中的选项，点一下会高亮</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t">对话气泡（去尖角 · 用户无头像）</div>
+    <div class="chat">
+      <div class="row">
+        <div class="ava"><svg class="ico" viewBox="0 0 24 24"><path d="M5 19c0-8 5-14 14-14 0 9-5 14-14 14z"/><path d="M5 19C8 14 12 10 17 8"/></svg></div>
+        <div class="bub ai">想带家里人去云南呀～几个人、大概玩几天？有没有特别想去的地方？</div>
+      </div>
+      <div class="row u"><div class="bub u">五个人，7 天左右，孩子想去西双版纳抓虫</div></div>
+      <div class="row">
+        <div class="ava"><svg class="ico" viewBox="0 0 24 24"><path d="M5 19c0-8 5-14 14-14 0 9-5 14-14 14z"/><path d="M5 19C8 14 12 10 17 8"/></svg></div>
+        <div class="bub ai">了解啦！那预算和出发城市方便说下吗？</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t">信息卡片 & 数据来源标签</div>
+    <div class="card">
+      <h3>
+        <svg class="ico" style="stroke:var(--primary);width:22px;height:22px" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M12 3a6 6 0 016 6c0 3-2 5-3 6H9c-1-1-3-3-3-6a6 6 0 016-6z"/></svg>
+        综合你的偏好，西双版纳线更合适
+      </h3>
+      <div class="t-body" style="color:var(--text-sub);margin-bottom:10px;">孩子体验、老人舒适上更匹配你的需求</div>
+      <span class="tag">机票 API</span>
+      <span class="tag">攻略 RAG</span>
+      <span class="tag tag-sun">
+        <svg class="ico" style="stroke:#B77A22;width:14px;height:14px" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-4 10c.5.6 1 1.4 1 2h6c0-.6.5-1.4 1-2a6 6 0 00-4-10z"/></svg>
+        意外发现
+      </span>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t">状态色（仅场景 C 告警用）</div>
+    <div class="st-row"><span class="st-dot" style="background:#D96A5B"></span>高 · 景区关闭 / 航班取消</div>
+    <div class="st-row"><span class="st-dot" style="background:#E8A54B"></span>中 · 延误 / 预警</div>
+    <div class="st-row"><span class="st-dot" style="background:#5B93D9"></span>低 · 轻微提醒</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t">底部输入区（保留但引导用选项）</div>
+    <div class="inp-bar">
+      <div class="inp">和 TripPilot 说说…</div>
+      <div class="icon-btn ghost"><svg class="ico" viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v6a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M5 10v1a7 7 0 0014 0v-1M12 18v4"/></svg></div>
+      <div class="icon-btn"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20V4M5 11l7-7 7 7"/></svg></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
