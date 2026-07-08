@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TripPilot · AI 旅行管家</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Serif+SC:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#2E6B5E;--primary-dark:#1F4D42;--primary-light:#E8F0ED;
+  --lime:#C3D982;--lime-dark:#A8C063;         /* 柔和黄绿点睛（收敛，不荧光） */
+  --bg-page:#F6F3EC;--bg-card:#FFFFFF;
+  --text:#20261F;--text-sub:#6B7770;--text-dis:#A8B0AB;--border:#EAE6DF;
+  --sun:#E8A54B;--hi:#D96A5B;--mid:#E8A54B;--low:#5B93D9;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:"Noto Sans SC",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:#E4E0D8;min-height:100vh;display:flex;justify-content:center;align-items:center;
+  padding:20px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  color:var(--text);letter-spacing:.2px;
+}
+.serif{font-family:"Noto Serif SC",Georgia,"Songti SC","STSong",serif;letter-spacing:0;}
+
+/* 手机外壳 */
+.phone{width:390px;height:844px;background:#0a0a0a;border-radius:52px;padding:12px;
+  box-shadow:0 24px 70px rgba(0,0,0,.3);flex-shrink:0;}
+.screen{width:100%;height:100%;background:var(--bg-page);border-radius:42px;overflow:hidden;
+  position:relative;display:flex;flex-direction:column;}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:110px;height:32px;background:#000;border-radius:20px;z-index:200;}
+.statusbar{position:absolute;top:0;left:0;right:0;height:54px;z-index:150;display:flex;align-items:center;justify-content:space-between;
+  padding:6px 32px 0;font-size:15px;font-weight:590;letter-spacing:.2px;pointer-events:none;}
+.statusbar.light{color:#fff;} .statusbar.dark{color:var(--text);}
+.statusbar .sb-r{display:flex;align-items:center;gap:6px;}
+.statusbar .sb-r .ico{width:18px;height:13px;stroke-width:2;}
+.statusbar .time{font-variant-numeric:tabular-nums;}
+/* 页面顶部为状态栏留出的安全区 */
+.safe-top{height:54px;flex-shrink:0;}
+
+.ico{width:20px;height:20px;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke:currentColor;flex-shrink:0;}
+
+/* 入场动效：元素依次淡入上浮 */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.rise{opacity:0;animation:fadeUp .6s cubic-bezier(.16,1,.3,1) forwards;}
+.d1{animation-delay:.05s;}.d2{animation-delay:.14s;}.d3{animation-delay:.24s;}
+.d4{animation-delay:.34s;}.d5{animation-delay:.44s;}.d6{animation-delay:.54s;}
+@media (prefers-reduced-motion:reduce){.rise{animation:none;opacity:1;}}
+
+.page{position:absolute;inset:0;display:none;flex-direction:column;background:var(--bg-page);}
+.page.on{display:flex;}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.scroll::-webkit-scrollbar{width:0;}
+
+.nav{height:48px;display:flex;align-items:center;padding:0 12px;flex-shrink:0;}
+.nav .back{width:38px;height:38px;display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;border-radius:50%;background:rgba(255,255,255,.6);}
+.nav .back:active{background:var(--primary-light);}
+.nav .title{flex:1;text-align:center;font-size:16px;font-weight:600;}
+.nav .r{width:38px;}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;height:50px;border-radius:16px;font-size:15px;font-weight:600;cursor:pointer;border:none;width:100%;}
+.btn-p{background:var(--primary);color:#fff;}
+.btn-p:active{background:var(--primary-dark);}
+.btn-lime{background:var(--lime);color:var(--primary-dark);}
+.btn-lime:active{background:var(--lime-dark);}
+.btn-s{background:#fff;color:var(--primary);border:1.5px solid var(--primary);}
+.bb{padding:12px 16px calc(12px + env(safe-area-inset-bottom));flex-shrink:0;}
+
+/* 底部 Tab */
+.tabbar{display:flex;flex-shrink:0;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:10px 0 30px;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--text-dis);cursor:pointer;}
+.tab .ico{width:23px;height:23px;stroke:var(--text-dis);stroke-width:1.8;}
+.tab.on{color:var(--primary);} .tab.on .ico{stroke:var(--primary);}
+
+/* ============ P1 首页 ============ */
+/* 顶部沉浸风景 hero */
+#p1{background:var(--bg-page);}
+.hero{position:relative;padding:54px 20px 40px;margin-bottom:-24px;
+  background:linear-gradient(165deg,#5FA98C 0%,#3C8268 42%,#2E6B5E 100%);
+  overflow:hidden;}
+.hero::after{content:"";position:absolute;right:-40px;top:20px;width:180px;height:180px;border-radius:50%;
+  background:radial-gradient(circle,rgba(205,232,91,.35),transparent 70%);}
+.hero::before{content:"";position:absolute;left:-30px;bottom:-30px;width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.12),transparent 70%);}
+.hero-hi{font-size:15px;color:rgba(255,255,255,.95);position:relative;z-index:2;margin-top:14px;}
+.hero-title{font-size:32px;font-weight:300;color:#fff;line-height:1.32;margin-top:10px;position:relative;z-index:2;letter-spacing:.5px;}
+.hero-title b{font-weight:800;letter-spacing:0;}
+/* 搜索/开始 胶囊 */
+.hero-search{margin-top:20px;background:rgba(255,255,255,.96);border-radius:18px;padding:14px 16px;
+  display:flex;align-items:center;gap:12px;position:relative;z-index:2;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.12);}
+.hero-search:active{transform:scale(.99);}
+.hero-search .hs-t{flex:1;}
+.hero-search .hs-main{font-size:15px;font-weight:600;color:var(--text);}
+.hero-search .hs-sub{font-size:12px;color:var(--text-sub);margin-top:2px;}
+.hero-search .hs-go{width:42px;height:42px;border-radius:14px;background:var(--lime);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hero-search .hs-go .ico{stroke:var(--primary-dark);stroke-width:2.4;}
+
+.p1-body{background:var(--bg-page);border-radius:24px 24px 0 0;position:relative;z-index:3;padding-top:8px;}
+.sec-h{padding:16px 20px 8px;display:flex;align-items:center;justify-content:space-between;}
+.sec-h .st{font-size:18px;font-weight:700;letter-spacing:.3px;}
+.sec-h .more{display:flex;align-items:center;gap:1px;font-size:13px;color:var(--text-sub);}
+
+/* 行程卡 */
+.trip{margin:0 20px 12px;background:#fff;border-radius:18px;padding:15px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 18px rgba(31,77,66,.07);cursor:pointer;}
+.trip:active{transform:scale(.99);}
+.trip .tp,.trip-main .tp{width:44px;height:44px;border-radius:12px;flex-shrink:0;overflow:hidden;position:relative;}
+.trip .tp img,.trip-main .tp img{width:100%;height:100%;object-fit:cover;display:block;}
+.tp.g1{background:linear-gradient(135deg,#57b98f,#2E6B5E);}
+.tp.g2{background:linear-gradient(135deg,#c9a06a,#9c7440);}
+.trip .ti{flex:1;min-width:0;}
+.trip .tn{font-size:15.5px;font-weight:600;}
+.trip .td{font-size:12.5px;color:var(--text-sub);margin-top:4px;}
+.trip .tb{font-size:12px;font-weight:600;padding:6px 14px;border-radius:9px;flex-shrink:0;white-space:nowrap;line-height:1;}
+.trip-main .tb{font-size:12px;font-weight:600;padding:6px 14px;border-radius:9px;flex-shrink:0;white-space:nowrap;line-height:1;}
+.tb-go{background:var(--primary-light);color:var(--primary);}
+.tb-done{background:#ECEAE4;color:#9A968E;}
+/* 行程卡（统一规格）：主行 + 可选 AI 陪伴条 */
+.trip-wrap{margin:0 20px 10px;background:#fff;border-radius:18px;padding:14px 15px;box-shadow:0 4px 18px rgba(31,77,66,.07);cursor:pointer;}
+.trip-wrap:active{transform:scale(.99);}
+.trip-main{display:flex;align-items:center;gap:16px;}
+.trip-main .ti{flex:1;min-width:0;}
+.trip-main .tn{font-size:15.5px;font-weight:600;line-height:1.35;}
+.trip-main .td{font-size:12.5px;color:var(--text-sub);margin-top:5px;}
+.trip-ai{display:flex;align-items:center;gap:8px;margin-top:13px;padding:10px 12px;border-radius:11px;background:#EEF6F1;font-size:12.5px;color:var(--primary);line-height:1.45;}
+.trip-ai .ico{width:16px;height:16px;flex-shrink:0;}
+.trip-ai span{color:#4A6B60;}
+
+/* 灵感大图卡 */
+.insp-row{display:flex;gap:14px;padding:0 20px 22px;overflow-x:auto;}
+.insp-row::-webkit-scrollbar{height:0;}
+.insp{width:158px;flex-shrink:0;border-radius:18px;overflow:hidden;position:relative;height:190px;cursor:pointer;box-shadow:0 6px 20px rgba(31,77,66,.1);}
+.insp:active{transform:scale(.99);}
+.insp .cover{position:absolute;inset:0;overflow:hidden;}
+.insp .cover svg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.insp .cover .photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
+.insp .cover::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.55),rgba(0,0,0,.05) 55%,transparent);z-index:2;}
+.insp .fav{position:absolute;top:12px;left:12px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.28);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:3;}
+.insp .fav .ico{width:15px;height:15px;stroke:#fff;}
+.insp .cap{position:absolute;left:14px;right:14px;bottom:14px;color:#fff;z-index:3;}
+.insp .cap .ct{font-size:14px;font-weight:700;line-height:1.35;}
+.insp .cap .cs{font-size:11px;opacity:.92;margin-top:4px;}
+.insp .pill{position:absolute;bottom:14px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;z-index:4;}
+.insp .pill .ico{width:17px;height:17px;stroke:var(--primary-dark);stroke-width:2.4;}
+
+/* ============ P2 对话 ============ */
+.chat{flex:1;overflow-y:auto;padding:8px 16px 4px;}
+.chat::-webkit-scrollbar{width:0;}
+.row{display:flex;margin-bottom:12px;align-items:flex-end;gap:8px;animation:pop .3s ease;}
+.row.u{justify-content:flex-end;}
+@keyframes pop{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.ava{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ava .ico{width:19px;height:19px;stroke:#fff;}
+.bub{max-width:76%;padding:11px 15px;font-size:15px;line-height:1.5;border-radius:20px;}
+.bub.ai{background:#fff;color:var(--text);box-shadow:0 2px 10px rgba(0,0,0,.04);}
+.bub.u{background:var(--primary);color:#fff;}
+.typing{display:flex;gap:4px;padding:3px 0;}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--primary);opacity:.4;animation:blink 1.2s infinite;}
+.typing span:nth-child(2){animation-delay:.2s;} .typing span:nth-child(3){animation-delay:.4s;}
+@keyframes blink{0%,60%,100%{opacity:.3;}30%{opacity:.9;}}
+.reqcard{align-self:stretch;background:#fff;border-radius:20px;padding:16px;margin:2px 0 8px;box-shadow:0 6px 20px rgba(0,0,0,.06);animation:pop .3s ease;}
+.reqcard h4{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;color:var(--primary);}
+.reqcard .fr{display:flex;align-items:center;gap:8px;font-size:14px;padding:6px 0;border-bottom:1px solid #F3F1EC;}
+.reqcard .fr:last-child{border:none;}
+.reqcard .fr .k{color:var(--text-sub);width:56px;flex-shrink:0;}
+.reqcard .fr .v{font-weight:600;flex:1;}
+.reqcard .fr .ok{color:var(--lime-dark);}
+
+.opts{padding:4px 4px 8px;}
+.opt-hint{font-size:12px;color:var(--text-dis);margin:0 0 8px 4px;}
+.opt{background:#fff;border:1.5px solid var(--border);border-radius:16px;padding:13px 15px;font-size:15px;margin-bottom:8px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:9px;}
+.opt:active{transform:scale(.99);}
+.opt:hover{border-color:var(--primary);background:var(--primary-light);}
+.opt .oi{color:var(--lime-dark);}
+/* 对话里浮出的 CTA（不是硬邦邦底栏） */
+.cta-float{align-self:stretch;margin:4px 0 10px;animation:pop .3s ease;}
+.cta-float .btn{border-radius:18px;box-shadow:0 8px 22px rgba(46,107,94,.28);}
+
+.inp-bar{display:flex;gap:8px;align-items:center;padding:10px 16px calc(10px + env(safe-area-inset-bottom));flex-shrink:0;background:var(--bg-page);}
+.inp{flex:1;height:46px;border-radius:24px;border:1px solid var(--border);background:#fff;padding:0 16px;font-size:14px;color:var(--text-dis);display:flex;align-items:center;}
+.icon-btn{width:46px;height:46px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;}
+.icon-btn .ico{stroke:#fff;} .icon-btn.ghost{background:#fff;border:1px solid var(--border);} .icon-btn.ghost .ico{stroke:var(--text-sub);}
+
+/* ============ P3 偏好排序 ============ */
+.p3-intro{padding:8px 20px 4px;}
+.p3-intro .p3-t{font-size:20px;font-weight:700;}
+.p3-intro .p3-s{font-size:13px;color:var(--text-sub);margin-top:8px;line-height:1.6;}
+.rank-list{padding:16px 20px 4px;}
+.rank-item{display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;
+  box-shadow:0 3px 14px rgba(31,77,66,.06);cursor:grab;transition:box-shadow .2s,transform .1s;touch-action:none;}
+.rank-item.dragging{opacity:.9;box-shadow:0 12px 30px rgba(31,77,66,.18);transform:scale(1.02);cursor:grabbing;}
+.rank-item .rk{width:26px;height:26px;border-radius:8px;background:var(--primary-light);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.rank-item:first-child .rk{background:var(--primary);color:#fff;}
+.rank-item .rc{flex:1;min-width:0;}
+.rank-item .rn{font-size:15px;font-weight:600;}
+.rank-item .rq{font-size:12px;color:var(--text-sub);margin-top:3px;}
+.rank-item .arrows{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.rank-item .arrows button{width:26px;height:20px;border:none;background:#F1EFE9;border-radius:6px;color:var(--text-sub);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}
+.rank-item .arrows button:active{background:var(--primary-light);color:var(--primary);}
+.rank-item .arrows button:disabled{opacity:.3;cursor:default;}
+.rank-item .grip{color:var(--text-dis);flex-shrink:0;cursor:grab;}
+.p3-note{display:flex;align-items:flex-start;gap:8px;margin:6px 20px 16px;padding:11px 13px;
+  background:#EEF6F1;border-radius:12px;font-size:12.5px;color:#4A6B60;line-height:1.5;}
+.p3-note .ico{flex-shrink:0;margin-top:1px;}
+
+/* ============ P4 对比报告 ============ */
+/* 推理中 */
+.think-wrap{padding:60px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;}
+.think-ava{width:60px;height:60px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;
+  animation:pulse 1.6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(46,107,94,.3);}50%{transform:scale(1.05);box-shadow:0 0 0 14px rgba(46,107,94,0);}}
+.think-title{font-size:17px;font-weight:600;margin:22px 0 20px;}
+.think-steps{width:100%;display:flex;flex-direction:column;gap:12px;}
+.think-step{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-dis);opacity:0;transform:translateX(-6px);
+  transition:all .4s;text-align:left;}
+.think-step.show{opacity:1;transform:translateX(0);color:var(--text-sub);}
+.think-step.done .tick{background:var(--primary);border-color:var(--primary);}
+.think-step .tick{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.think-step .tick .ico{width:12px;height:12px;stroke:#fff;stroke-width:3;}
+
+/* 结果 */
+.cmp-body{padding:12px 20px 8px;}
+/* 结论卡 */
+.verdict{background:#fff;border-radius:18px;padding:18px;box-shadow:0 4px 18px rgba(31,77,66,.07);margin-bottom:14px;}
+.verdict .vh{font-size:16px;font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:14px;line-height:1.4;}
+.verdict .vh .medal{color:var(--sun);}
+.score{margin-bottom:11px;}
+.score .sl{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:5px;}
+.score .sl .nm{font-weight:600;} .score .sl .nm.win{color:var(--primary);}
+.score .sl .sc{font-weight:700;} .score .sl .sc.win{color:var(--primary);}
+.score .bar{height:8px;background:#F1EFE9;border-radius:5px;overflow:hidden;}
+.score .fill{height:100%;border-radius:5px;width:0;transition:width 1s cubic-bezier(.16,1,.3,1);}
+.score .fill.win{background:var(--primary);} .score .fill.lose{background:#C3CBC5;}
+.vh-sub{font-size:12.5px;color:var(--text-sub);line-height:1.6;margin-top:4px;}
+
+.sec-title{font-size:14px;font-weight:700;color:var(--text-sub);margin:18px 4px 10px;}
+/* 维度对比条 */
+.dim{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 3px 14px rgba(31,77,66,.05);}
+.dim .dh{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
+.dim .dn{font-size:14.5px;font-weight:600;}
+.dim .rank-badge{font-size:10.5px;font-weight:600;color:var(--primary);background:var(--primary-light);padding:3px 9px;border-radius:999px;}
+.dim .duo{display:flex;gap:10px;}
+.dim .side{flex:1;background:#FAF8F3;border-radius:10px;padding:10px;}
+.dim .side.win{background:var(--primary-light);}
+.dim .side .st{font-size:12px;color:var(--text-sub);margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;}
+.dim .side .stars{font-size:13px;letter-spacing:1px;}
+.dim .side .win-star{color:var(--primary);} .dim .side .dim-star{color:#CFD6D0;}
+.dim .side .sd{font-size:12px;color:var(--text);line-height:1.45;}
+.dim .src{margin-top:9px;display:flex;gap:5px;flex-wrap:wrap;}
+.srctag{font-size:10px;font-weight:500;color:var(--primary);background:var(--primary-light);padding:2px 8px;border-radius:999px;}
+
+/* 反直觉发现（暖阳高亮） */
+.insight{background:linear-gradient(135deg,#FDF4E3,#FBEBCF);border-radius:16px;padding:15px;margin:16px 0;border:1px solid #F2DFB8;}
+.insight .ih{font-size:14px;font-weight:700;color:#B77A22;display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+.insight .it{font-size:13.5px;color:#6B4E1E;line-height:1.6;}
+.insight .it b{color:#8A5A12;}
+
+/* 隐性成本 */
+.hidden-cost{background:#fff;border-radius:14px;padding:14px;box-shadow:0 3px 14px rgba(31,77,66,.05);margin-bottom:12px;}
+.hidden-cost .hh{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+.hidden-cost .ht{font-size:12.5px;color:var(--text-sub);line-height:1.6;}
+.hidden-cost .ht b{color:var(--primary);}
+.disclaimer{font-size:11px;color:var(--text-dis);text-align:center;padding:6px 0 4px;line-height:1.5;}
+
+/* ============ P6 行程仪表盘 ============ */
+.db-hero{padding:54px 20px 34px;background:linear-gradient(165deg,#5FA98C,#2E6B5E);color:#fff;}
+.db-loc{font-size:13px;opacity:.85;}
+.db-day{font-size:26px;font-weight:700;margin-top:4px;}
+.db-status{font-size:13px;opacity:.9;margin-top:10px;display:flex;align-items:center;gap:7px;}
+.db-status .dot{width:8px;height:8px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 3px rgba(195,217,130,.3);}
+.db-body{background:var(--bg-page);border-radius:24px 24px 0 0;margin-top:-20px;padding:16px 20px 24px;position:relative;}
+/* 告警卡 */
+.alert-card{display:flex;align-items:center;gap:12px;border-radius:16px;padding:15px;cursor:pointer;margin-bottom:6px;}
+.alert-card.hi{background:linear-gradient(135deg,#E17A6B,#D25A4A);color:#fff;box-shadow:0 8px 22px rgba(209,90,74,.28);}
+.alert-card .al-icon{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.alert-card .al-c{flex:1;min-width:0;}
+.alert-card .al-t{font-size:15px;font-weight:700;}
+.alert-card .al-s{font-size:12px;opacity:.92;margin-top:3px;line-height:1.4;}
+.alert-card .al-arr{width:20px;height:20px;stroke:#fff;flex-shrink:0;opacity:.8;}
+/* 今日时间线 */
+.today-card{background:#fff;border-radius:16px;padding:8px 16px;box-shadow:0 3px 14px rgba(31,77,66,.05);}
+.tl{display:flex;gap:12px;padding:11px 0;}
+.tl-time{font-size:12px;color:var(--text-sub);width:38px;flex-shrink:0;padding-top:1px;}
+.tl-line{position:relative;width:12px;flex-shrink:0;display:flex;justify-content:center;}
+.tl-line::before{content:"";position:absolute;top:0;bottom:-22px;width:2px;background:#EFECE4;}
+.tl:last-child .tl-line::before{display:none;}
+.tl-dot{width:11px;height:11px;border-radius:50%;background:#D8D4CC;margin-top:3px;z-index:1;}
+.tl-dot.done{background:var(--primary);}
+.tl-dot.now{background:var(--sun);box-shadow:0 0 0 4px rgba(232,165,75,.2);}
+.tl-c{flex:1;}
+.tl-n{font-size:14.5px;font-weight:600;}
+.tl-d{font-size:12px;color:var(--text-sub);margin-top:2px;}
+.tl-d.cur{color:var(--sun);font-weight:600;}
+/* 帮你盯着 */
+.watch-row{display:flex;gap:10px;}
+.watch{flex:1;background:#fff;border-radius:14px;padding:13px 10px;text-align:center;box-shadow:0 3px 14px rgba(31,77,66,.05);cursor:pointer;}
+.watch .w-ico{width:38px;height:38px;border-radius:11px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;}
+.watch .w-ico.rain{background:#7C93A8;} .watch .w-ico.plane{background:var(--sun);} .watch .w-ico.loc{background:var(--primary);}
+.watch .w-t{font-size:11px;color:var(--text-sub);}
+.watch .w-v{font-size:13.5px;font-weight:700;margin-top:2px;}
+.watch .w-v.hi-txt{color:var(--hi);} .watch .w-v.mid-txt{color:var(--sun);}
+
+/* ============ Sheet 浮层 ============ */
+.sheet-mask{position:absolute;inset:0;background:rgba(20,26,22,.45);z-index:300;opacity:0;pointer-events:none;
+  transition:opacity .3s;display:flex;flex-direction:column;justify-content:flex-end;}
+.sheet-mask.on{opacity:1;pointer-events:auto;}
+.sheet{background:var(--bg-page);border-radius:24px 24px 0 0;max-height:86%;overflow-y:auto;padding:10px 20px calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(30px);transition:transform .35s cubic-bezier(.16,1,.3,1);}
+.sheet::-webkit-scrollbar{width:0;}
+.sheet-mask.on .sheet{transform:translateY(0);}
+.sheet-grip{width:40px;height:5px;border-radius:3px;background:#D8D4CC;margin:0 auto 14px;}
+.sh-head{margin-bottom:16px;}
+.sh-badge{display:inline-block;font-size:11px;font-weight:600;padding:5px 11px;border-radius:999px;margin-bottom:10px;}
+.sh-badge.hi-badge{background:rgba(217,106,91,.14);color:var(--hi);}
+.sh-badge.mid-badge{background:rgba(232,165,75,.16);color:#B77A22;}
+.sh-title{font-size:19px;font-weight:700;line-height:1.35;}
+.sh-time{font-size:12px;color:var(--text-sub);margin-top:6px;}
+.sh-block{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 3px 14px rgba(31,77,66,.05);}
+.sh-bt{font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:8px;}
+.sh-bd{font-size:13.5px;color:var(--text);line-height:1.6;}
+.sh-bd b{color:var(--hi);}
+.impact{font-size:13px;color:var(--text);line-height:1.5;display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;}
+.impact:last-child{margin-bottom:0;}
+.impact b{font-weight:600;}
+.im-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.im-dot.hi{background:var(--hi);} .im-dot.ok{background:var(--primary);}
+.sh-note{font-size:13px;color:#4A6B60;background:#EEF6F1;border-radius:12px;padding:12px 14px;line-height:1.6;margin-top:4px;}
+.sh-note b{color:var(--primary);}
+.planb-mini{display:flex;gap:10px;align-items:flex-start;padding:9px 0;}
+.planb-mini:not(:last-child){border-bottom:1px solid #F3F1EC;}
+.pm-rank{font-size:18px;flex-shrink:0;}
+.pm-n{font-size:14px;font-weight:600;}
+.pm-d{font-size:12px;color:var(--text-sub);margin-top:2px;line-height:1.45;}
+
+/* ============ P8 Plan B 卡片 ============ */
+.pb-top-note{background:#fff;border-radius:14px;padding:14px;margin:12px 0 12px;box-shadow:0 3px 14px rgba(31,77,66,.05);}
+.pbn-t{font-size:14px;font-weight:600;}
+.pbn-t s{color:var(--text-dis);}
+.pbn-s{font-size:12.5px;color:var(--text-sub);margin-top:5px;line-height:1.5;}
+.pb-card{background:#fff;border-radius:16px;padding:15px;margin-bottom:12px;box-shadow:0 3px 14px rgba(31,77,66,.05);
+  border:2px solid transparent;cursor:pointer;transition:all .15s;}
+.pb-card:active{transform:scale(.99);}
+.pb-card.top{border-color:var(--primary-light);}
+.pb-card.sel{border-color:var(--primary);box-shadow:0 6px 20px rgba(46,107,94,.15);}
+.pb-rank{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:6px;}
+.pb-name{font-size:16px;font-weight:700;}
+.pb-tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+.pb-tag{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;}
+.pb-tag.ok{background:var(--primary-light);color:var(--primary);}
+.pb-tag.mid{background:#F3EFE6;color:#9A7A3E;}
+.pb-meta{font-size:12.5px;color:var(--text-sub);margin-bottom:9px;}
+.pb-why{font-size:13px;color:var(--text);line-height:1.55;background:#F8F6F0;border-radius:10px;padding:10px 12px;}
+.pb-why b{color:var(--primary);}
+.pb-diff{font-size:12px;color:var(--text-sub);margin-top:8px;line-height:1.5;}
+
+/* ============ P9 执行引导 ============ */
+.exec-body{padding:16px 20px 24px;}
+.exec-done{background:linear-gradient(135deg,#EAF5EE,#DDF0E4);border-radius:18px;padding:22px;text-align:center;margin-bottom:8px;}
+.ed-ico{width:56px;height:56px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.ed-t{font-size:18px;font-weight:700;}
+.ed-s{font-size:13px;color:var(--text-sub);margin-top:7px;line-height:1.5;}
+.ed-s b{color:var(--primary);}
+.mini-btn{margin-top:8px;font-size:12px;font-weight:600;color:var(--primary);background:var(--primary-light);border:none;
+  padding:7px 14px;border-radius:999px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="phone"><div class="screen">
+<div class="island"></div>
+
+<!-- ========== P1 首页 ========== -->
+<div class="page on" id="p1">
+  <div class="statusbar light">
+    <span class="time">9:41</span>
+    <span class="sb-r">
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><rect x="0" y="10" width="3" height="6" rx="1"/><rect x="5" y="7" width="3" height="9" rx="1"/><rect x="10" y="4" width="3" height="12" rx="1"/><rect x="15" y="1" width="3" height="15" rx="1"/></svg>
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><path d="M12 3.5c3.2 0 6.1 1.2 8.3 3.2l-1.6 1.8C17 8 14.6 7 12 7S7 8 5.3 8.5L3.7 6.7C5.9 4.7 8.8 3.5 12 3.5zM12 9c1.9 0 3.6.7 4.9 1.9l-1.7 1.9C14.4 12 13.2 11.5 12 11.5s-2.4.5-3.2 1.3l-1.7-1.9C8.4 9.7 10.1 9 12 9zm0 4.2l1.9 2.1H10z"/></svg>
+      <svg class="ico" viewBox="0 0 27 16" style="fill:none"><rect x="1" y="2.5" width="21" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity=".5"/><rect x="2.6" y="4.1" width="17" height="7.8" rx="1.8" fill="currentColor"/><rect x="23.5" y="6" width="1.8" height="4" rx="1" fill="currentColor" opacity=".6"/></svg>
+    </span>
+  </div>
+  <div class="scroll">
+    <div class="hero">
+      <div class="hero-hi rise d1">你好，小琳</div>
+      <div class="hero-title serif rise d2">去哪儿，<br><b>都陪你走一趟</b></div>
+      <div class="hero-search rise d3" onclick="go('p2')">
+        <div class="hs-t">
+          <div class="hs-main">开始和 TripPilot 规划</div>
+          <div class="hs-sub">告诉我你的想法，我帮你生成专属旅程</div>
+        </div>
+        <div class="hs-go"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+    </div>
+
+    <div class="p1-body">
+      <div class="sec-h rise d4"><span class="st">我的旅行</span></div>
+      <div class="trip-wrap active-trip rise d4" onclick="go('p6')">
+        <div class="trip-main">
+          <div class="tp g1"><img alt="" loading="lazy" onerror="this.style.display='none'" src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=120&q=70&auto=format&fit=crop"></div>
+          <div class="ti"><div class="tn">云南 · 西双版纳线</div><div class="td">7月15日出发 · 5 天 · 家庭</div></div>
+          <div class="tb tb-go">进行中</div>
+        </div>
+        <div class="trip-ai">
+          <svg class="ico" viewBox="0 0 24 24" style="stroke:var(--primary)"><circle cx="12" cy="12" r="4.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>
+          <span>距出发还有 12 天 · 已为你持续关注版纳天气，出发前会提醒你</span>
+        </div>
+      </div>
+      <div class="trip-wrap rise d5">
+        <div class="trip-main">
+          <div class="tp g2"><img alt="" loading="lazy" onerror="this.style.display='none'" src="https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=120&q=70&auto=format&fit=crop"></div>
+          <div class="ti"><div class="tn">青甘大环线</div><div class="td">行程已结束 · 7 天 · 班级团</div></div>
+          <div class="tb tb-done">已完成</div>
+        </div>
+      </div>
+
+      <div class="sec-h rise d5"><span class="st">别人怎么玩</span><span class="more">更多<svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M9 6l6 6-6 6"/></svg></span></div>
+      <div class="insp-row rise d6">
+        <div class="insp">
+          <div class="cover">
+            <svg viewBox="0 0 158 210" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <linearGradient id="jgSky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#DCEBD0"/><stop offset="1" stop-color="#A9CFA0"/>
+                </linearGradient>
+                <linearGradient id="jgFar" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#7DB283"/><stop offset="1" stop-color="#5E9A6D"/>
+                </linearGradient>
+              </defs>
+              <rect width="158" height="210" fill="url(#jgSky)"/>
+              <circle cx="112" cy="52" r="22" fill="#FBF3DA" opacity=".7"/>
+              <path d="M0 120 C34 96 60 100 90 116 C118 130 140 122 158 112 V210 H0Z" fill="url(#jgFar)"/>
+              <path d="M0 150 C40 128 74 138 104 152 C130 164 148 160 158 154 V210 H0Z" fill="#3F7E5A"/>
+              <path d="M0 182 C46 164 92 176 124 186 C140 191 150 190 158 188 V210 H0Z" fill="#2A5F42"/>
+              <path d="M0 150 C40 128 74 138 104 152" stroke="#EAF3E3" stroke-width="1" fill="none" opacity=".35"/>
+            </svg>
+            <img class="photo" alt="" loading="lazy" onerror="this.style.display='none'"
+              src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=70&auto=format&fit=crop">
+          </div>
+          <div class="fav"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21C5 15 3 11 3 8a4.5 4.5 0 018-2.5A4.5 4.5 0 0121 8c0 3-2 7-9 13z"/></svg></div>
+          <div class="cap"><div class="ct">西双版纳<br>带娃雨林 5 日</div><div class="cs">昆虫馆 · 夜观 · 傣味</div></div>
+          <div class="pill"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="insp">
+          <div class="cover">
+            <svg viewBox="0 0 158 210" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <linearGradient id="lkSky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#E4EEF2"/><stop offset="1" stop-color="#BDD8E4"/>
+                </linearGradient>
+                <linearGradient id="lkWater" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#8FC0D6"/><stop offset="1" stop-color="#5E9DBE"/>
+                </linearGradient>
+              </defs>
+              <rect width="158" height="210" fill="url(#lkSky)"/>
+              <path d="M0 108 C30 78 52 74 78 92 C104 74 128 80 158 104 V132 H0Z" fill="#8AAEC0"/>
+              <path d="M0 118 C34 96 60 96 88 110 C116 96 138 100 158 116 V132 H0Z" fill="#6E97AC"/>
+              <rect y="130" width="158" height="80" fill="url(#lkWater)"/>
+              <path d="M0 150 C40 144 118 144 158 150" stroke="#E7F2F6" stroke-width="1.2" fill="none" opacity=".5"/>
+              <path d="M0 172 C40 166 118 166 158 172" stroke="#E7F2F6" stroke-width="1" fill="none" opacity=".35"/>
+            </svg>
+            <img class="photo" alt="" loading="lazy" onerror="this.style.display='none'"
+              src="https://images.unsplash.com/photo-1509233725247-49e657c54213?w=400&q=70&auto=format&fit=crop">
+          </div>
+          <div class="fav"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21C5 15 3 11 3 8a4.5 4.5 0 018-2.5A4.5 4.5 0 0121 8c0 3-2 7-9 13z"/></svg></div>
+          <div class="cap"><div class="ct">大理<br>苍山洱海 4 日</div><div class="cs">环海 · 古城 · 慢生活</div></div>
+          <div class="pill"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><svg class="ico" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>首页</div>
+    <div class="tab" onclick="go('p2')"><svg class="ico" viewBox="0 0 24 24"><path d="M12 3a9 9 0 00-9 9 9 9 0 001.5 5L3 21l4-1.5A9 9 0 1012 3z"/></svg>规划</div>
+    <div class="tab" onclick="go('p6')"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>行程</div>
+    <div class="tab"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg>我的</div>
+  </div>
+</div>
+
+<!-- ========== P2 陪聊需求 ========== -->
+<div class="page" id="p2">
+  <div class="statusbar dark">
+    <span class="time">9:41</span>
+    <span class="sb-r">
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><rect x="0" y="10" width="3" height="6" rx="1"/><rect x="5" y="7" width="3" height="9" rx="1"/><rect x="10" y="4" width="3" height="12" rx="1"/><rect x="15" y="1" width="3" height="15" rx="1"/></svg>
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><path d="M12 3.5c3.2 0 6.1 1.2 8.3 3.2l-1.6 1.8C17 8 14.6 7 12 7S7 8 5.3 8.5L3.7 6.7C5.9 4.7 8.8 3.5 12 3.5zM12 9c1.9 0 3.6.7 4.9 1.9l-1.7 1.9C14.4 12 13.2 11.5 12 11.5s-2.4.5-3.2 1.3l-1.7-1.9C8.4 9.7 10.1 9 12 9zm0 4.2l1.9 2.1H10z"/></svg>
+      <svg class="ico" viewBox="0 0 27 16" style="fill:none"><rect x="1" y="2.5" width="21" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity=".5"/><rect x="2.6" y="4.1" width="17" height="7.8" rx="1.8" fill="currentColor"/><rect x="23.5" y="6" width="1.8" height="4" rx="1" fill="currentColor" opacity=".6"/></svg>
+    </span>
+  </div>
+  <div class="safe-top"></div>
+  <div class="nav">
+    <div class="back" onclick="go('p1')"><svg class="ico" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+    <div class="title">规划新旅行</div>
+    <div class="r"></div>
+  </div>
+  <div class="chat" id="chat"></div>
+  <div id="stage" style="padding:0 16px;"></div>
+  <div class="inp-bar">
+    <div class="inp">和 TripPilot 说说…</div>
+    <div class="icon-btn ghost"><svg class="ico" viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v6a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M5 10v1a7 7 0 0014 0v-1M12 18v3"/></svg></div>
+    <div class="icon-btn"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20V4M5 11l7-7 7 7"/></svg></div>
+  </div>
+</div>
+
+<!-- ========== P3 偏好排序 ========== -->
+<div class="page" id="p3">
+  <div class="statusbar dark">
+    <span class="time">9:41</span>
+    <span class="sb-r">
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><rect x="0" y="10" width="3" height="6" rx="1"/><rect x="5" y="7" width="3" height="9" rx="1"/><rect x="10" y="4" width="3" height="12" rx="1"/><rect x="15" y="1" width="3" height="15" rx="1"/></svg>
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><path d="M12 3.5c3.2 0 6.1 1.2 8.3 3.2l-1.6 1.8C17 8 14.6 7 12 7S7 8 5.3 8.5L3.7 6.7C5.9 4.7 8.8 3.5 12 3.5zM12 9c1.9 0 3.6.7 4.9 1.9l-1.7 1.9C14.4 12 13.2 11.5 12 11.5s-2.4.5-3.2 1.3l-1.7-1.9C8.4 9.7 10.1 9 12 9zm0 4.2l1.9 2.1H10z"/></svg>
+      <svg class="ico" viewBox="0 0 27 16" style="fill:none"><rect x="1" y="2.5" width="21" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity=".5"/><rect x="2.6" y="4.1" width="17" height="7.8" rx="1.8" fill="currentColor"/><rect x="23.5" y="6" width="1.8" height="4" rx="1" fill="currentColor" opacity=".6"/></svg>
+    </span>
+  </div>
+  <div class="safe-top"></div>
+  <div class="nav">
+    <div class="back" onclick="go('p2')"><svg class="ico" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+    <div class="title">排一下优先级</div>
+    <div class="r"></div>
+  </div>
+  <div class="scroll">
+    <div class="p3-intro">
+      <div class="p3-t">这几件事，哪个你更在乎？</div>
+      <div class="p3-s">拖动排序，越靠上我越优先考虑。<br>我会按这个顺序帮你对比两条线路。</div>
+    </div>
+    <div class="rank-list" id="rankList"></div>
+    <div class="p3-note">
+      <svg class="ico" viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--primary)"><circle cx="12" cy="12" r="4.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>
+      <span>这几项是我从刚才的聊天里提炼的，你可以调整顺序，或去掉不在意的。</span>
+    </div>
+  </div>
+  <div class="bb"><button class="btn btn-p" onclick="go('p4')">按这个顺序帮我对比 →</button></div>
+</div>
+
+<!-- ========== P4 多维对比报告 ========== -->
+<div class="page" id="p4">
+  <div class="statusbar dark">
+    <span class="time">9:41</span>
+    <span class="sb-r">
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><rect x="0" y="10" width="3" height="6" rx="1"/><rect x="5" y="7" width="3" height="9" rx="1"/><rect x="10" y="4" width="3" height="12" rx="1"/><rect x="15" y="1" width="3" height="15" rx="1"/></svg>
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><path d="M12 3.5c3.2 0 6.1 1.2 8.3 3.2l-1.6 1.8C17 8 14.6 7 12 7S7 8 5.3 8.5L3.7 6.7C5.9 4.7 8.8 3.5 12 3.5zM12 9c1.9 0 3.6.7 4.9 1.9l-1.7 1.9C14.4 12 13.2 11.5 12 11.5s-2.4.5-3.2 1.3l-1.7-1.9C8.4 9.7 10.1 9 12 9zm0 4.2l1.9 2.1H10z"/></svg>
+      <svg class="ico" viewBox="0 0 27 16" style="fill:none"><rect x="1" y="2.5" width="21" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity=".5"/><rect x="2.6" y="4.1" width="17" height="7.8" rx="1.8" fill="currentColor"/><rect x="23.5" y="6" width="1.8" height="4" rx="1" fill="currentColor" opacity=".6"/></svg>
+    </span>
+  </div>
+  <div class="safe-top"></div>
+  <div class="nav">
+    <div class="back" onclick="go('p3')"><svg class="ico" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+    <div class="title">方案对比</div>
+    <div class="r"></div>
+  </div>
+  <!-- 推理中 -->
+  <div class="scroll" id="p4think">
+    <div class="think-wrap">
+      <div class="think-ava"><svg class="ico" viewBox="0 0 24 24" style="stroke:#fff;width:26px;height:26px"><circle cx="12" cy="12" r="4.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg></div>
+      <div class="think-title">正在帮你对比两条线路…</div>
+      <div class="think-steps" id="thinkSteps"></div>
+    </div>
+  </div>
+  <!-- 结果 -->
+  <div class="scroll" id="p4result" style="display:none;">
+    <div class="cmp-body" id="cmpBody"></div>
+  </div>
+  <div class="bb" id="p4cta" style="display:none;gap:10px;">
+    <button class="btn btn-s" style="flex:1" onclick="chooseLine('香格里拉线')">选香格里拉线</button>
+    <button class="btn btn-p" style="flex:1.4" onclick="chooseLine('西双版纳线')">选西双版纳线 →</button>
+  </div>
+</div>
+
+<!-- ========== P6 行程仪表盘 ========== -->
+<div class="page" id="p6">
+  <div class="statusbar light">
+    <span class="time">9:41</span>
+    <span class="sb-r">
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><rect x="0" y="10" width="3" height="6" rx="1"/><rect x="5" y="7" width="3" height="9" rx="1"/><rect x="10" y="4" width="3" height="12" rx="1"/><rect x="15" y="1" width="3" height="15" rx="1"/></svg>
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><path d="M12 3.5c3.2 0 6.1 1.2 8.3 3.2l-1.6 1.8C17 8 14.6 7 12 7S7 8 5.3 8.5L3.7 6.7C5.9 4.7 8.8 3.5 12 3.5zM12 9c1.9 0 3.6.7 4.9 1.9l-1.7 1.9C14.4 12 13.2 11.5 12 11.5s-2.4.5-3.2 1.3l-1.7-1.9C8.4 9.7 10.1 9 12 9zm0 4.2l1.9 2.1H10z"/></svg>
+      <svg class="ico" viewBox="0 0 27 16" style="fill:none"><rect x="1" y="2.5" width="21" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity=".5"/><rect x="2.6" y="4.1" width="17" height="7.8" rx="1.8" fill="currentColor"/><rect x="23.5" y="6" width="1.8" height="4" rx="1" fill="currentColor" opacity=".6"/></svg>
+    </span>
+  </div>
+  <div class="scroll">
+    <div class="db-hero">
+      <div class="db-loc">云南 · 西双版纳线</div>
+      <div class="db-day">Day 3 · 今天</div>
+      <div class="db-status"><span class="dot"></span>一切正常 · 已为你盯着天气和航班</div>
+    </div>
+    <div class="db-body">
+      <!-- 高级别告警（暴雨，点击进 P7） -->
+      <div class="alert-card hi" onclick="openSheet()">
+        <div class="al-icon"><svg class="ico" viewBox="0 0 24 24" style="stroke:#fff"><path d="M12 2a7 7 0 00-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 00-7-7z" style="display:none"/><path d="M6 16a4 4 0 01.5-8 5 5 0 019.5-1 3.5 3.5 0 011 6.9"/><path d="M8 19l-1 2M12 19l-1 2M16 19l-1 2"/></svg></div>
+        <div class="al-c"><div class="al-t">明早的虎跳峡可能去不成</div><div class="al-s">暴雨预警，景区大概率临时关闭 · 点我看看怎么办</div></div>
+        <svg class="ico al-arr" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+
+      <div class="sec-h" style="padding-left:0;padding-right:0;"><span class="st">今日行程</span></div>
+      <div class="today-card">
+        <div class="tl"><div class="tl-time">09:00</div><div class="tl-line"><span class="tl-dot done"></span></div><div class="tl-c"><div class="tl-n">中科院热带植物园</div><div class="tl-d">已完成 · 孩子抓到了 3 种昆虫</div></div></div>
+        <div class="tl"><div class="tl-time">12:30</div><div class="tl-line"><span class="tl-dot done"></span></div><div class="tl-c"><div class="tl-n">傣味午餐 · 曼听公园旁</div><div class="tl-d">已完成</div></div></div>
+        <div class="tl"><div class="tl-time">15:00</div><div class="tl-line"><span class="tl-dot now"></span></div><div class="tl-c"><div class="tl-n">曼听御花园</div><div class="tl-d cur">进行中 · 傍晚有大象巡游</div></div></div>
+        <div class="tl"><div class="tl-time">19:30</div><div class="tl-line"><span class="tl-dot"></span></div><div class="tl-c"><div class="tl-n">星光夜市</div><div class="tl-d">晚上 · 小吃 + 手作</div></div></div>
+      </div>
+
+      <div class="sec-h" style="padding-left:0;padding-right:0;"><span class="st">帮你盯着</span></div>
+      <div class="watch-row">
+        <div class="watch">
+          <div class="w-ico rain"><svg class="ico" viewBox="0 0 24 24" style="stroke:#fff;width:20px;height:20px"><path d="M6 16a4 4 0 01.5-8 5 5 0 019.5-1 3.5 3.5 0 011 6.9"/><path d="M9 19l-1 2M13 19l-1 2"/></svg></div>
+          <div class="w-t">明日天气</div><div class="w-v hi-txt">暴雨</div>
+        </div>
+        <div class="watch" onclick="openFlightSheet()">
+          <div class="w-ico plane"><svg class="ico" viewBox="0 0 24 24" style="stroke:#fff;width:20px;height:20px"><path d="M12 3a9 9 0 00-9 9 9 9 0 001.5 5L3 21l4-1.5A9 9 0 1012 3z" style="display:none"/><path d="M2 12l20-8-8 20-2.5-7.5L2 12z"/></svg></div>
+          <div class="w-t">返程航班</div><div class="w-v mid-txt">延误风险</div>
+        </div>
+        <div class="watch">
+          <div class="w-ico loc"><svg class="ico" viewBox="0 0 24 24" style="stroke:#fff;width:20px;height:20px"><path d="M12 21s-6-5-6-10a6 6 0 0112 0c0 5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></div>
+          <div class="w-t">景区人流</div><div class="w-v">适中</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab" onclick="go('p1')"><svg class="ico" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>首页</div>
+    <div class="tab" onclick="go('p2')"><svg class="ico" viewBox="0 0 24 24"><path d="M12 4a8 8 0 00-8 8 8 8 0 001.3 4.4L4 20l3.6-1.3A8 8 0 1012 4z"/></svg>规划</div>
+    <div class="tab on"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.5-6.5-10.5a6.5 6.5 0 0113 0C18.5 15.5 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/></svg>行程</div>
+    <div class="tab"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg>我的</div>
+  </div>
+</div>
+
+<!-- ========== P8 Plan B 方案 ========== -->
+<div class="page" id="p8">
+  <div class="statusbar dark">
+    <span class="time">9:41</span>
+    <span class="sb-r">
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><rect x="0" y="10" width="3" height="6" rx="1"/><rect x="5" y="7" width="3" height="9" rx="1"/><rect x="10" y="4" width="3" height="12" rx="1"/><rect x="15" y="1" width="3" height="15" rx="1"/></svg>
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><path d="M12 3.5c3.2 0 6.1 1.2 8.3 3.2l-1.6 1.8C17 8 14.6 7 12 7S7 8 5.3 8.5L3.7 6.7C5.9 4.7 8.8 3.5 12 3.5zM12 9c1.9 0 3.6.7 4.9 1.9l-1.7 1.9C14.4 12 13.2 11.5 12 11.5s-2.4.5-3.2 1.3l-1.7-1.9C8.4 9.7 10.1 9 12 9zm0 4.2l1.9 2.1H10z"/></svg>
+      <svg class="ico" viewBox="0 0 27 16" style="fill:none"><rect x="1" y="2.5" width="21" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity=".5"/><rect x="2.6" y="4.1" width="17" height="7.8" rx="1.8" fill="currentColor"/><rect x="23.5" y="6" width="1.8" height="4" rx="1" fill="currentColor" opacity=".6"/></svg>
+    </span>
+  </div>
+  <div class="safe-top"></div>
+  <div class="nav">
+    <div class="back" onclick="go('p6')"><svg class="ico" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+    <div class="title">替代方案</div>
+    <div class="r"></div>
+  </div>
+  <div class="scroll" id="p8scroll"></div>
+  <div class="bb" id="p8cta" style="display:none;"><button class="btn btn-p" id="p8btn" onclick="go('p9')">选好了，帮我导航过去 →</button></div>
+</div>
+
+<!-- ========== P9 执行引导 ========== -->
+<div class="page" id="p9">
+  <div class="statusbar dark">
+    <span class="time">9:41</span>
+    <span class="sb-r">
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><rect x="0" y="10" width="3" height="6" rx="1"/><rect x="5" y="7" width="3" height="9" rx="1"/><rect x="10" y="4" width="3" height="12" rx="1"/><rect x="15" y="1" width="3" height="15" rx="1"/></svg>
+      <svg class="ico" viewBox="0 0 24 16" style="fill:currentColor;stroke:none"><path d="M12 3.5c3.2 0 6.1 1.2 8.3 3.2l-1.6 1.8C17 8 14.6 7 12 7S7 8 5.3 8.5L3.7 6.7C5.9 4.7 8.8 3.5 12 3.5zM12 9c1.9 0 3.6.7 4.9 1.9l-1.7 1.9C14.4 12 13.2 11.5 12 11.5s-2.4.5-3.2 1.3l-1.7-1.9C8.4 9.7 10.1 9 12 9zm0 4.2l1.9 2.1H10z"/></svg>
+      <svg class="ico" viewBox="0 0 27 16" style="fill:none"><rect x="1" y="2.5" width="21" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity=".5"/><rect x="2.6" y="4.1" width="17" height="7.8" rx="1.8" fill="currentColor"/><rect x="23.5" y="6" width="1.8" height="4" rx="1" fill="currentColor" opacity=".6"/></svg>
+    </span>
+  </div>
+  <div class="safe-top"></div>
+  <div class="nav">
+    <div class="back" onclick="go('p8')"><svg class="ico" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+    <div class="title">已帮你调整好</div>
+    <div class="r"></div>
+  </div>
+  <div class="scroll">
+    <div class="exec-body">
+      <div class="exec-done">
+        <div class="ed-ico"><svg class="ico" viewBox="0 0 24 24" style="stroke:#fff;width:28px;height:28px"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <div class="ed-t">明天的行程已更新</div>
+        <div class="ed-s">虎跳峡 → <b>热带植物园温室</b>，其余行程不受影响</div>
+      </div>
+      <div class="sec-h" style="padding-left:0;"><span class="st">接下来这样走</span></div>
+      <div class="today-card">
+        <div class="tl"><div class="tl-time">09:30</div><div class="tl-line"><span class="tl-dot now"></span></div><div class="tl-c"><div class="tl-n">出发去热带植物园温室</div><div class="tl-d cur">车程约 25 分钟 · 已备好导航</div><button class="mini-btn">打开高德导航</button></div></div>
+        <div class="tl"><div class="tl-time">10:00</div><div class="tl-line"><span class="tl-dot"></span></div><div class="tl-c"><div class="tl-n">温室观昆虫 + 亲子讲解</div><div class="tl-d">室内 · 雨天不受影响 · 约 3 小时</div></div></div>
+        <div class="tl"><div class="tl-time">12:30</div><div class="tl-line"><span class="tl-dot"></span></div><div class="tl-c"><div class="tl-n">园区餐厅午饭</div><div class="tl-d">步行 5 分钟</div></div></div>
+      </div>
+      <div class="p3-note" style="margin:14px 0 0;">
+        <svg class="ico" viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--primary)"><circle cx="12" cy="12" r="4.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>
+        <span>我会继续盯着雨势，如果下午转晴、虎跳峡重新开放，第一时间告诉你。</span>
+      </div>
+    </div>
+  </div>
+  <div class="bb"><button class="btn btn-p" onclick="go('p6')">好的，回到行程</button></div>
+</div>
+
+<!-- Sheet 浮层容器（P7 应急预警 / 航班延误） -->
+<div class="sheet-mask" id="sheetMask" onclick="closeSheet(event)">
+  <div class="sheet" id="sheetBox"></div>
+</div>
+
+</div></div>
+
+<script>
+const stack=['p1'];
+function go(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  if(stack[stack.length-1]!==id)stack.push(id);
+  if(id==='p2')startChat();
+  if(id==='p3')renderRank();
+  if(id==='p4')startCompare();
+  if(id==='p8')startPlanB();
+}
+function back(){if(stack.length>1){stack.pop();go(stack[stack.length-1]);}}
+
+const LEAF='<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>';
+const chat=()=>document.getElementById('chat');
+const stageEl=()=>document.getElementById('stage');
+
+/* Demo：每步只给一个选项作为“剧本台词”，点它推进，保证问答一一对应 */
+const script=[
+  { ai:"你好呀，我是 TripPilot 🌿 这次想带家里人去哪儿玩、大概几天呀？",
+    opts:["带爸妈和孩子去云南，5-7 天"],
+    key:"人数天数" },
+  { ai:"带着老人和孩子，我会特别留意别太累～有没有谁特别想去的地方？",
+    opts:["孩子想去西双版纳抓虫、看昆虫"],
+    key:"想去" },
+  { ai:"懂了，孩子的心愿排第一～预算和出发城市方便说下吗？",
+    opts:["五个人 1.5 万左右，上海出发"],
+    key:"预算出发" },
+  { ai:"最后一个～老人身体方面，长途或者高海拔要注意吗？",
+    opts:["尽量别太累、别去高海拔"],
+    key:"体力" },
+];
+let step=0, collected={};
+
+function startChat(){
+  if(chat().dataset.init)return;
+  chat().dataset.init="1";
+  chat().innerHTML=''; step=0; collected={};
+  aiSay(script[0].ai, ()=>showOpts(0));
+}
+function aiSay(text, cb){
+  const t=document.createElement('div');
+  t.className='row'; t.innerHTML=`<div class="ava">${LEAF}</div><div class="bub ai"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  chat().appendChild(t); scrollDown();
+  setTimeout(()=>{ t.querySelector('.bub').innerHTML=text; scrollDown(); if(cb)setTimeout(cb,250); }, 850);
+}
+function userSay(text){
+  const r=document.createElement('div');
+  r.className='row u'; r.innerHTML=`<div class="bub u">${text}</div>`;
+  chat().appendChild(r); scrollDown();
+}
+function showOpts(i){
+  const s=script[i];
+  let h=`<div class="opts"><div class="opt-hint">点一个，或直接和我说</div>`;
+  s.opts.forEach((o,idx)=>{
+    h+=`<div class="opt" onclick="pick(${i},${idx})"><span class="oi"><svg class="ico" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>${o}</div>`;
+  });
+  h+=`</div>`;
+  stageEl().innerHTML=h;
+}
+function pick(i,idx){
+  const choice=script[i].opts[idx];
+  collected[script[i].key]=choice;
+  userSay(choice);
+  stageEl().innerHTML='';
+  step++;
+  if(step<script.length){ aiSay(script[step].ai, ()=>showOpts(step)); }
+  else{ aiSay("好啦，我把你的想法整理了一下，你看看对不对：", showReqCard); }
+}
+function showReqCard(){
+  const card=document.createElement('div');
+  card.className='reqcard';
+  card.innerHTML=`<h4>${LEAF} 你的旅行需求</h4>
+    <div class="fr"><span class="k">同行</span><span class="v">爸妈 + 孩子，5 人</span><span class="ok"><svg class="ico" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+    <div class="fr"><span class="k">天数</span><span class="v">5–7 天</span></div>
+    <div class="fr"><span class="k">想去</span><span class="v">西双版纳 · 孩子看昆虫</span></div>
+    <div class="fr"><span class="k">预算</span><span class="v">约 1.5 万 · 上海出发</span></div>
+    <div class="fr"><span class="k">偏好</span><span class="v">别太累、避开高海拔</span></div>`;
+  chat().appendChild(card); scrollDown();
+  aiSay("对了，你想去的地方其实分在两条方向相反的线上，我帮你摆出来对比一下，你来定？", ()=>{
+    const cta=document.createElement('div');
+    cta.className='cta-float';
+    cta.innerHTML=`<button class="btn btn-p" onclick="go('p3')">好，先排一下我在乎什么 →</button>`;
+    chat().appendChild(cta); scrollDown();
+  });
+}
+function scrollDown(){setTimeout(()=>{chat().scrollTop=chat().scrollHeight;},50);}
+
+/* ============ P3 偏好排序（拖拽 + 箭头兜底） ============ */
+let prefs=[
+  {n:'孩子体验',q:'孩子想去西双版纳抓虫、看昆虫'},
+  {n:'老人舒适',q:'别太累、避开高海拔'},
+  {n:'预算控制',q:'五个人 1.5 万左右'},
+  {n:'风景气候',q:'想看看云南的风光'},
+];
+function renderRank(){
+  const list=document.getElementById('rankList');
+  list.innerHTML=prefs.map((p,i)=>`
+    <div class="rank-item" draggable="true" data-i="${i}">
+      <span class="rk">${i+1}</span>
+      <div class="rc"><div class="rn">${p.n}</div><div class="rq">${p.q}</div></div>
+      <div class="arrows">
+        <button onclick="moveRank(${i},-1)" ${i===0?'disabled':''}><svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M6 15l6-6 6 6"/></svg></button>
+        <button onclick="moveRank(${i},1)" ${i===prefs.length-1?'disabled':''}><svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M6 9l6 6 6-6"/></svg></button>
+      </div>
+      <span class="grip"><svg class="ico" viewBox="0 0 24 24" style="width:20px;height:20px"><path d="M8 7h.01M8 12h.01M8 17h.01M16 7h.01M16 12h.01M16 17h.01"/></svg></span>
+    </div>`).join('');
+  bindDrag();
+}
+function moveRank(i,dir){
+  const j=i+dir; if(j<0||j>=prefs.length)return;
+  [prefs[i],prefs[j]]=[prefs[j],prefs[i]];
+  renderRank();
+}
+let dragEl=null;
+function bindDrag(){
+  document.querySelectorAll('#rankList .rank-item').forEach(el=>{
+    el.addEventListener('dragstart',e=>{dragEl=el;el.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    el.addEventListener('dragend',()=>{el.classList.remove('dragging');commitDomOrder();});
+    el.addEventListener('dragover',e=>{
+      e.preventDefault();
+      const t=e.currentTarget; if(t===dragEl)return;
+      const list=t.parentNode, items=[...list.children];
+      if(items.indexOf(t)<items.indexOf(dragEl)) list.insertBefore(dragEl,t);
+      else list.insertBefore(dragEl,t.nextSibling);
+    });
+  });
+}
+function commitDomOrder(){
+  const order=[...document.querySelectorAll('#rankList .rank-item')].map(el=>+el.dataset.i);
+  prefs=order.map(i=>prefs[i]);
+  renderRank();
+}
+
+/* ============ P4 多维对比 ============ */
+// 各维度两条线的数据（win: 哪条线在该维度更优）
+const DIM_DATA={
+  '孩子体验':{xsbn:{s:5,d:'昆虫博物馆+雨林夜观，正对孩子胃口'},sgll:{s:2,d:'高原风光为主，抓虫类活动少'},win:'xsbn',src:['攻略RAG','景点库']},
+  '老人舒适':{xsbn:{s:4,d:'海拔低、无高反风险，湿热需避正午'},sgll:{s:2,d:'部分路段3000m+，老人易高反'},win:'xsbn',src:['景点库']},
+  '预算控制':{xsbn:{s:4,d:'去程直飞约¥1500，回程绕昆明更省'},sgll:{s:3,d:'高原包车+机票，整体偏高'},win:'xsbn',src:['机票API']},
+  '风景气候':{xsbn:{s:3,d:'7月湿热多雨，雨林景观独特'},sgll:{s:5,d:'雪山草甸，7月凉爽壮丽'},win:'sgll',src:['天气API','攻略RAG']},
+};
+function startCompare(){
+  const think=document.getElementById('p4think'), result=document.getElementById('p4result'), cta=document.getElementById('p4cta');
+  think.style.display=''; result.style.display='none'; cta.style.display='none';
+  const steps=['读取你的偏好排序','拉取两条线的机票和天气','从 200+ 篇攻略里检索经验','按你在乎的维度逐项打分'];
+  const box=document.getElementById('thinkSteps');
+  box.innerHTML=steps.map((s,i)=>`<div class="think-step" id="ts${i}"><span class="tick"><svg class="ico" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>${s}</div>`).join('');
+  steps.forEach((s,i)=>{
+    setTimeout(()=>{const el=document.getElementById('ts'+i);if(el)el.classList.add('show');},300+i*520);
+    setTimeout(()=>{const el=document.getElementById('ts'+i);if(el)el.classList.add('done');},300+i*520+380);
+  });
+  setTimeout(()=>{think.style.display='none';result.style.display='';cta.style.display='flex';renderCompare();},300+steps.length*520+500);
+}
+function renderCompare(){
+  const nameMap={xsbn:'西双版纳线',sgll:'香格里拉线'};
+  // 按用户 P3 偏好顺序渲染维度
+  let dims='';
+  prefs.forEach((p,idx)=>{
+    const d=DIM_DATA[p.n]; if(!d)return;
+    const xWin=d.win==='xsbn',
+      xStars=stars(d.xsbn.s,xWin), sStars=stars(d.sgll.s,!xWin);
+    dims+=`<div class="dim">
+      <div class="dh"><span class="dn">${p.n}</span><span class="rank-badge">你排第 ${idx+1}</span></div>
+      <div class="duo">
+        <div class="side ${xWin?'win':''}">
+          <div class="st"><span>西双版纳线</span></div>
+          <div class="stars ${xWin?'win-star':'dim-star'}">${xStars}</div>
+          <div class="sd">${d.xsbn.d}</div>
+        </div>
+        <div class="side ${!xWin?'win':''}">
+          <div class="st"><span>香格里拉线</span></div>
+          <div class="stars ${!xWin?'win-star':'dim-star'}">${sStars}</div>
+          <div class="sd">${d.sgll.d}</div>
+        </div>
+      </div>
+      <div class="src">${d.src.map(s=>`<span class="srctag">${s}</span>`).join('')}</div>
+    </div>`;
+  });
+  document.getElementById('cmpBody').innerHTML=`
+    <div class="verdict">
+      <div class="vh"><span class="medal"><svg class="ico" viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--sun)"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0zM7 5H4v2a3 3 0 003 3M17 5h3v2a3 3 0 01-3 3"/></svg></span>综合你的偏好，西双版纳线更适合这趟</div>
+      <div class="score">
+        <div class="sl"><span class="nm win">西双版纳线</span><span class="sc win">86</span></div>
+        <div class="bar"><div class="fill win" data-w="86%"></div></div>
+      </div>
+      <div class="score">
+        <div class="sl"><span class="nm">香格里拉线</span><span class="sc">71</span></div>
+        <div class="bar"><div class="fill lose" data-w="71%"></div></div>
+      </div>
+      <div class="vh-sub">你把「孩子体验」和「老人舒适」排在前面，西双版纳线在这两项都更占优；香格里拉线胜在风景气候，但那是你排最后的一项。</div>
+    </div>
+    <div class="sec-title">按你在乎的顺序，逐项看</div>
+    ${dims}
+    <div class="insight">
+      <div class="ih"><svg class="ico" viewBox="0 0 24 24" style="width:17px;height:17px;stroke:#B77A22"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0012 2z"/></svg>一个你可能没想到的点</div>
+      <div class="it">7 月云南是雨季，一般会给旅行扣分。但你家<b>孩子想看昆虫</b>——雨季恰恰是昆虫最活跃的季节，对这趟旅行反而是<b>加分项</b>。</div>
+    </div>
+    <div class="hidden-cost">
+      <div class="hh"><svg class="ico" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--primary)"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>顺便帮你算了笔容易忽略的账</div>
+      <div class="ht">真正贵的不是去程，是「从版纳直接飞回上海」这一程。<b>去程直飞版纳、回程绕昆明走</b>，一家五口能省不少——代价是回程要多花大半天。</div>
+    </div>
+    <div class="disclaimer">以上价格、天气为示意数据，实际以查询为准 · 更新于 2 分钟前</div>`;
+  // 得分条动画
+  setTimeout(()=>{document.querySelectorAll('#cmpBody .fill').forEach(f=>f.style.width=f.dataset.w);},100);
+}
+function stars(n,win){
+  let s=''; for(let i=0;i<5;i++)s+=(i<n?'●':'○'); return s;
+}
+function chooseLine(name){
+  alert('已选择：'+name+'\\n（demo 中此处生成每日行程，本版聚焦 B/C 两个核心场景）');
+}
+
+/* ============ P7 应急预警 Sheet ============ */
+function openSheet(){
+  document.getElementById('sheetBox').innerHTML=`
+    <div class="sheet-grip"></div>
+    <div class="sh-head">
+      <div class="sh-badge hi-badge">🔴 高优先 · 提前 15 小时预警</div>
+      <div class="sh-title">明早的虎跳峡，大概率去不成了</div>
+      <div class="sh-time">07-20 08:15 · 中国气象局暴雨黄色预警</div>
+    </div>
+    <div class="sh-block">
+      <div class="sh-bt">发生了什么</div>
+      <div class="sh-bd">明日 08:00–16:00 虎跳峡持续暴雨（58mm/h），景区高峡栈道大概率临时关闭。</div>
+      <div class="src" style="margin-top:8px;"><span class="srctag">天气API</span><span class="srctag">景区公告</span></div>
+    </div>
+    <div class="sh-block">
+      <div class="sh-bt">对你行程的影响</div>
+      <div class="impact"><span class="im-dot hi"></span><b>直接影响：</b>明天上午的虎跳峡去不了</div>
+      <div class="impact"><span class="im-dot ok"></span><b>不受影响：</b>今晚住宿、明天下午的行程都正常</div>
+      <div class="impact"><span class="im-dot ok"></span><b>好消息：</b>离虎跳峡还有几天，有充足时间调整</div>
+    </div>
+    <div class="sh-note">我没有替你改行程——要不要我在附近找几个适合孩子、又不受雨影响的替代地方？你来定。</div>
+    <button class="btn btn-p" style="margin-top:14px;" onclick="closeSheet();go('p8')">帮我找替代方案 →</button>
+    <button class="btn btn-s" style="margin-top:10px;" onclick="closeSheet()">先不用，我知道了</button>`;
+  document.getElementById('sheetMask').classList.add('on');
+}
+function openFlightSheet(){
+  document.getElementById('sheetBox').innerHTML=`
+    <div class="sheet-grip"></div>
+    <div class="sh-head">
+      <div class="sh-badge mid-badge">🟡 中优先 · 返程日预警</div>
+      <div class="sh-title">返程航班可能延误，末班车赶不上</div>
+      <div class="sh-time">示意 · 实际以航司为准</div>
+    </div>
+    <div class="sh-block">
+      <div class="sh-bt">发生了什么</div>
+      <div class="sh-bd">你的返程航班预计延误约 2 小时，新落地时间 22:50。而你落地机场的市域线 <b>23:00 停运</b>，按新时间大概率赶不上。</div>
+      <div class="src" style="margin-top:8px;"><span class="srctag">航班API</span><span class="srctag">地铁运营</span></div>
+    </div>
+    <div class="sh-block">
+      <div class="sh-bt">我先帮你想了两条后路</div>
+      <div class="planb-mini"><span class="pm-rank">🥇</span><div><div class="pm-n">落地直接打车回家</div><div class="pm-d">约 50 分钟 · 目的地和路线都填好，你落地点确认就行</div></div></div>
+      <div class="planb-mini"><span class="pm-rank">🥈</span><div><div class="pm-n">机场附近酒店住一晚</div><div class="pm-d">明早再回 · 已按你的预算筛好几家</div></div></div>
+    </div>
+    <div class="sh-note">这些我都只是帮你<b>准备好</b>——退改签、下单最后一步都由你按，涉及钱的事我不替你做主。</div>
+    <button class="btn btn-p" style="margin-top:14px;" onclick="closeSheet()">好，落地前提醒我确认</button>`;
+  document.getElementById('sheetMask').classList.add('on');
+}
+function closeSheet(e){
+  if(e&&e.target!==document.getElementById('sheetMask'))return;
+  document.getElementById('sheetMask').classList.remove('on');
+}
+
+/* ============ P8 Plan B ============ */
+const PLANS=[
+  {rank:'🥇 最推荐',name:'中科院热带植物园 · 温室馆',tags:[['室内','ok'],['雨天不影响','ok'],['亲子','ok']],
+    meta:'距你 25 分钟车程 · 约 3 小时 · ¥120/人',
+    why:'室内温室，暴雨完全不影响；本来就有昆虫和热带植物，正合孩子的兴趣',
+    diff:'和原计划的「看自然」一致，只是从户外峡谷换成室内雨林'},
+  {rank:'🥈 备选',name:'告庄西双景 · 傣族文化馆',tags:[['室内','ok'],['文化','mid']],
+    meta:'距你 15 分钟车程 · 约 2 小时 · ¥60/人',
+    why:'离得最近，室内文化体验，老人走得轻松',
+    diff:'偏人文，孩子的自然探索会少一些'},
+  {rank:'🥉 兜底',name:'酒店休整 + 泳池',tags:[['零风险','ok']],
+    meta:'就在住处 · 时间灵活 · 无额外花费',
+    why:'如果雨太大不想出门，就地休整，给后面几天攒精力',
+    diff:'放弃半天游玩，换来舒适和灵活'},
+];
+function startPlanB(){
+  const box=document.getElementById('p8scroll'), cta=document.getElementById('p8cta');
+  cta.style.display='none';
+  box.innerHTML=`<div class="think-wrap" style="padding:48px 32px;">
+    <div class="think-ava"><svg class="ico" viewBox="0 0 24 24" style="stroke:#fff;width:26px;height:26px"><circle cx="12" cy="12" r="4.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg></div>
+    <div class="think-title">正在帮你找替代方案…</div>
+    <div class="think-steps" id="pbSteps"></div></div>`;
+  const steps=['锁定你当前位置周边','筛掉太远、已关闭、露天的','按「带孩子 + 老人 + 雨天」排序'];
+  const sb=document.getElementById('pbSteps');
+  sb.innerHTML=steps.map((s,i)=>`<div class="think-step" id="pb${i}"><span class="tick"><svg class="ico" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>${s}</div>`).join('');
+  steps.forEach((s,i)=>{
+    setTimeout(()=>{const el=document.getElementById('pb'+i);if(el)el.classList.add('show');},250+i*480);
+    setTimeout(()=>{const el=document.getElementById('pb'+i);if(el)el.classList.add('done');},250+i*480+340);
+  });
+  setTimeout(renderPlanB,250+steps.length*480+400);
+}
+function renderPlanB(){
+  const cards=PLANS.map((p,i)=>`
+    <div class="pb-card ${i===0?'top':''}" onclick="pickPlan(${i},this)">
+      <div class="pb-rank">${p.rank}</div>
+      <div class="pb-name">${p.name}</div>
+      <div class="pb-tags">${p.tags.map(t=>`<span class="pb-tag ${t[1]}">${t[0]}</span>`).join('')}</div>
+      <div class="pb-meta">${p.meta}</div>
+      <div class="pb-why"><b>为什么推给你：</b>${p.why}</div>
+      <div class="pb-diff">与原计划：${p.diff}</div>
+    </div>`).join('');
+  document.getElementById('p8scroll').innerHTML=`
+    <div class="pb-top-note">
+      <div class="pbn-t"><s>虎跳峡</s> 明日暴雨关闭 · 已帮你在附近找到 3 个替代</div>
+      <div class="pbn-s">都不受雨影响 · 按你「带孩子、别让老人累」的偏好排好序</div>
+    </div>
+    ${cards}
+    <div class="disclaimer">距离、开放状态来自地图与景区数据 · 价格为示意</div>`;
+}
+let pickedPlan=null;
+function pickPlan(i,el){
+  pickedPlan=i;
+  document.querySelectorAll('#p8scroll .pb-card').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('p8cta').style.display='';
+}
+</script>
+</body>
+</html>
